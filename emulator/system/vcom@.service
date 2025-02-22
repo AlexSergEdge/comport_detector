@@ -1,0 +1,10 @@
+[Unit]
+Description="Virtual Ports Unit instance %i (ports %i01 and %i02)"
+PartOf=virtualserialports.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat -d -d pty,rawer,echo=0,link=/dev/PORT%i01 pty,rawer,echo=0,link=/dev/PORT%i02
+
+[Install]
+WantedBy=multi-user.target

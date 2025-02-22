@@ -1,0 +1,6 @@
+[Unit]
+Description="Virtual Ports"
+Requires=vcom@1.service vcom@2.service
+
+[Install]
+WantedBy=multi-user.target

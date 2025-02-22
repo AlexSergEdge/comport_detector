@@ -1,0 +1,1 @@
+Util to check if device is connected to COM port
