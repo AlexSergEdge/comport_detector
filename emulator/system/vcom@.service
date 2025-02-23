@@ -4,7 +4,7 @@ PartOf=virtualserialports.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/socat -d -d pty,rawer,echo=0,link=/dev/PORT%i01 pty,rawer,echo=0,link=/dev/PORT%i02
+ExecStart=/usr/bin/socat -d -d pty,rawer,echo=0,link=/dev/PORT%i01,crtscts=1 pty,rawer,echo=0,link=/dev/PORT%i02,crtscts=1
 
 [Install]
 WantedBy=multi-user.target

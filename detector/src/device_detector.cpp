@@ -1,15 +1,16 @@
 #include "include/device_detector.h"
 #include <stdio.h>
-#include <termios.h>  
-#include <string.h>   // strerror
-#include <errno.h>    // errno
-#include <fcntl.h>  // function to open COM ports, flags
-#include <unistd.h>
+#include <termios.h>                    // port params 
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>                      // functions to open COM ports, constants
+#include <unistd.h>                     // port reading/writing
+#include <sys/ioctl.h>                  // ioctl, constants
 
 using namespace std;
 
 
-/* Base settings */
+// Base settings
 void setup_port(termios *port_settings, int speed) {
 
     cfsetispeed(port_settings, speed);                                  // input baud rate
@@ -31,6 +32,7 @@ void setup_port(termios *port_settings, int speed) {
 }
 
 
+// Returns true if device is found on port
 bool is_device_connected(const char *port_number) {
     printf("Searching for devices on port %s\n", port_number);
 
@@ -53,20 +55,75 @@ bool is_device_connected(const char *port_number) {
         close(fd);
         return false;
     }
-    // Make required settings
+    // Make required base settings
     setup_port(&port_settings, B9600);
 
+    // TCSANOW - make changes immediately
     if (tcsetattr(fd, TCSANOW, &port_settings) != 0) {
         printf("Cannot set TCSANOW for port %s: %s\n", port_number, strerror(errno));
         close(fd);
         return false;
     }
 
+    bool device_connected = false;
 
+    device_connected = check_signal_lines(fd);
+    if (!device_connected) {
+        printf("No signal detected on control lines\n");
+        device_connected = read_data(fd);
+    }
+    if (!device_connected) {
+        printf("No data can be read from port\n");
+        device_connected = check_control_line(fd);
+    }
+    if (!device_connected) {
+        printf("No answer to DTR line up\n");
+    }
 
     close(fd);
+    return device_connected;
+}
+
+
+// Check if any of signal lines are up
+bool check_signal_lines(int fd) {
+    int lines_status;
+    // reading signal line
+    if (ioctl(fd, TIOCMGET, &lines_status) == 0) {
+        printf("Flags: %b\n", lines_status);
+        if ((lines_status & TIOCM_CD) ||   // DCD (Data Carrier Detect)
+            (lines_status & TIOCM_DSR) ||  // DSR (Data Set Ready)
+            (lines_status & TIOCM_CTS) ||  // Clear To Send
+            (lines_status & TIOCM_RI)) {   // Ring Indicator
+            return true;
+        }
+    }
+    else {
+        printf("Cannot get signal info: %s\n", strerror(errno));
+    }
     return false;
 }
 
 
+// Just read some data from port
+bool read_data(int fd) {
+    char buffer[32];
+    int bytes = read(fd, buffer, sizeof(buffer));
+    if (bytes > 0) return true;
+    return false;
+}
 
+
+// Check if setting DTR will change DSR from device side
+bool check_control_line(int fd) {
+    int lines_status;
+    // reading signal line
+    if (ioctl(fd, TIOCMGET, &lines_status) == 0) {
+        lines_status |= TIOCM_DTR;         // Change DTR (Data Transmission Ready)
+        ioctl(fd, TIOCMSET, &lines_status);
+        usleep(100000);  // wait for 100ms
+        ioctl(fd, TIOCMSET, &lines_status);
+        if (lines_status & TIOCM_DSR) return true;  // Check DSR
+    }
+    return false;
+}
