@@ -1,6 +1,6 @@
 # Serial port device detection
 
-Util is user to tell if any device is connected to serial port.
+Util is used to tell if any device is connected to serial port.
 
 > Important note: These checks do no guarantee that no device is connected to serial port. It all depends on device implementation and how it handles connections to serial ports. There can be cases when device does not set any lines or does not send ant data.
 
